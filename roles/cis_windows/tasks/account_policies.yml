@@ -1,0 +1,28 @@
+---
+- name: Configure account lockout threshold (CIS 1.2.2)
+  win_security_policy:
+    section: "System Access"
+    key: LockoutBadCount
+    value: "{{ cis_settings.account_lockout_threshold }}"
+  tags:
+    - account_policies
+    - cis_1.2.2
+
+- name: Configure account lockout duration (CIS 1.2.3)
+  win_security_policy:
+    section: "System Access"
+    key: ResetLockoutCount
+    value: "{{ cis_settings.reset_lockout_counter }}"
+  tags:
+    - account_policies
+    - cis_1.2.3
+
+- name: Set password expiry warning (CIS 2.3.7.7)
+  win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon
+    name: PasswordExpiryWarning
+    data: "{{ cis_settings.password_expiry_warning }}"
+    type: dword
+  tags:
+    - account_policies
+    - cis_2.3.7.7

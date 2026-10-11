@@ -1,0 +1,12 @@
+---
+# Default CIS Benchmark values (override in group_vars/ or host_vars/)
+cis_settings:
+  account_lockout_threshold: 5        # CIS 1.2.2 — 5 or fewer invalid attempts
+  account_lockout_duration: 15        # CIS 1.2.1 — 15 minutes or more
+  reset_lockout_counter: 15           # CIS 1.2.3 — 15 minutes or more
+  password_expiry_warning: 14         # CIS 2.3.7.7 — 5 to 14 days
+  require_ctrl_alt_del: true          # CIS 2.3.7.2
+
+cis_legal_notice:
+  organization: "Example Corp"
+  contact: "IT Security"

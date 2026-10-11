@@ -1,0 +1,7 @@
+---
+- name: Apply Windows CIS Compliance
+  hosts: windows
+  gather_facts: yes
+  roles:
+    - cis_windows
+

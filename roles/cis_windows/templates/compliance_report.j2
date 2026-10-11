@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>CIS Compliance Report - {{ ansible_hostname }}</title></head>
+<body>
+<h1>CIS Compliance Report</h1>
+<p>Host: {{ ansible_hostname }} | OS: {{ ansible_distribution }} {{ ansible_distribution_version }} | Generated: {{ ansible_date_time.iso8601 }}</p>
+<table border="1" cellpadding="6">
+<tr><th>Control</th><th>Setting</th><th>Target</th></tr>
+<tr><td>CIS 1.2.2</td><td>Account lockout threshold</td><td>{{ cis_settings.account_lockout_threshold }}</td></tr>
+<tr><td>CIS 1.2.3</td><td>Reset lockout counter (min)</td><td>{{ cis_settings.reset_lockout_counter }}</td></tr>
+<tr><td>CIS 2.3.7.7</td><td>Password expiry warning (days)</td><td>{{ cis_settings.password_expiry_warning }}</td></tr>
+<tr><td>CIS 2.3.7.2</td><td>Require CTRL+ALT+DEL</td><td>{{ cis_settings.require_ctrl_alt_del }}</td></tr>
+<tr><td>CIS 2.3.1.2</td><td>Guest account disabled</td><td>enforced</td></tr>
+<tr><td>CIS 2.2.7</td><td>RDP restricted to Administrators</td><td>enforced</td></tr>
+<tr><td>CIS 9.x</td><td>Windows Firewall enabled (all profiles)</td><td>enforced</td></tr>
+</table>
+</body></html>

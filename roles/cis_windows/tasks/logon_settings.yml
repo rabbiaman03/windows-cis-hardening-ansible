@@ -1,0 +1,62 @@
+---
+- name: Ensure template directory exists
+  delegate_to: localhost
+  run_once: true
+  file:
+    path: "{{ role_path }}/templates/"
+    state: directory
+
+- name: Require CTRL+ALT+DEL (CIS 2.3.7.2)
+  win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: DisableCAD
+    data: 0
+    type: dword
+  when: cis_settings.require_ctrl_alt_del
+  tags: 
+    - logon
+    - cis_2.3.7.2
+
+- name: Create default legal notice if missing
+  win_template:
+    src: legal_notice.txt.j2
+    dest: C:\Windows\System32\legal_notice.txt
+    mode: 0644
+  vars:
+    organization_name: "{{ cis_legal_notice.organization | default('Our Organization') }}"
+    contact_information: "{{ cis_legal_notice.contact | default('IT Security') }}"
+
+- name: Verify legal notice file exists
+  win_stat:
+    path: C:\Windows\System32\legal_notice.txt
+  register: legal_notice_file
+
+- name: Set legal notice registry keys
+  block:
+    - name: Set legal notice caption
+      win_regedit:
+        path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+        name: legalnoticecaption
+        data: "{{ cis_legal_notice.caption | default('Security Notice') }}"
+        type: string
+
+    - name: Set legal notice text
+      win_shell: |
+        $noticePath = "C:\Windows\System32\legal_notice.txt"
+        if (Test-Path $noticePath) {
+          $text = Get-Content $noticePath -Raw
+          Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" `
+            -Name "legalnoticetext" -Value $text
+        } else {
+          throw "Legal notice file not found at $noticePath"
+        }
+      args:
+        executable: powershell
+
+  rescue:
+    - name: Log registry configuration failure
+      win_shell: |
+        Write-EventLog -LogName Application -Source "CIS Compliance" `
+          -EntryType Error -EventId 105 `
+          -Message "Legal notice registry configuration failed: $($_.Exception.Message)"
+      ignore_errors: yes

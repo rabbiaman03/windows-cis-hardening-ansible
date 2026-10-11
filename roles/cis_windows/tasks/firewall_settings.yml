@@ -1,0 +1,54 @@
+- name: Verify elevated privileges
+  win_shell: |
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($id)
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+      throw "Elevated administrator privileges required"
+    }
+    exit 0
+  args:
+    executable: powershell
+  register: priv_check
+  failed_when: priv_check.rc != 0
+  tags: firewall
+
+- name: Configure Windows Firewall
+  block:
+    - name: Enable firewall service through registry (fallback)
+      win_regedit:
+        path: HKLM:\SYSTEM\CurrentControlSet\Services\mpssvc
+        name: Start
+        data: 2
+        type: dword
+      when: priv_check is failed
+      register: reg_fallback
+
+    - name: Force start firewall service via WMI
+      win_shell: |
+        $service = Get-WmiObject -Class Win32_Service -Filter "Name='mpssvc'"
+        if ($service.State -ne "Running") {
+          $result = $service.StartService()
+          if ($result.ReturnValue -ne 0) {
+            throw "Failed to start service (WMI Error: $($result.ReturnValue))"
+          }
+        }
+        exit 0
+      args:
+        executable: powershell
+      register: wmi_start
+      failed_when: wmi_start.rc != 0
+
+    - name: Configure firewall profile
+      win_shell: |
+        Set-NetFirewallProfile -All -Enabled True
+        Set-NetFirewallProfile -Profile Private -DefaultInboundAction Block -DefaultOutboundAction Allow
+        exit 0
+      args:
+        executable: powershell
+      register: netsh_config
+      failed_when: netsh_config.rc != 0
+
+  rescue:
+    - name: Critical firewall configuration failure
+      fail:
+        msg: "Could not configure Windows Firewall. Manual intervention required."

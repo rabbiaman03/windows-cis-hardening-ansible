@@ -1,0 +1,46 @@
+---
+- name: Disable Guest account (CIS 2.3.1.2)
+  block:
+    - name: Disable Guest account via PowerShell
+      win_shell: |
+        $guest = Get-LocalUser -Name Guest -ErrorAction SilentlyContinue
+        if ($guest -and $guest.Enabled) {
+          Disable-LocalUser -Name Guest
+          Set-LocalUser -Name Guest -PasswordNeverExpires $false
+          Write-Output "Guest account disabled"
+          exit 0
+        } elseif (-not $guest) {
+          Write-Output "Guest account not found"
+          exit 0
+        } else {
+          Write-Output "Guest account already disabled"
+          exit 0
+        }
+      args:
+        executable: powershell
+      register: disable_guest
+      changed_when: "'disabled' in disable_guest.stdout"
+      tags: user_accounts
+
+    - name: Verify Guest account status
+      win_shell: |
+        $guest = Get-LocalUser -Name Guest -ErrorAction SilentlyContinue
+        if ($guest -and $guest.Enabled) {
+          throw "Guest account still enabled"
+        }
+        exit 0
+      args:
+        executable: powershell
+      register: verify_guest
+      failed_when: verify_guest.rc != 0
+      tags: user_accounts
+
+  rescue:
+    - name: Log Guest account failure
+      win_shell: |
+        Write-EventLog -LogName Application -Source "CIS Compliance" `
+          -EntryType Warning -EventId 402 `
+          -Message "Guest account could not be disabled: $($_.Exception.Message)"
+      args:
+        executable: powershell
+      ignore_errors: yes

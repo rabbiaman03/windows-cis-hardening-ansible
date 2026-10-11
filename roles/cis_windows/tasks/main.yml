@@ -1,0 +1,56 @@
+---
+- name: Include all Windows CIS compliance tasks
+  block:
+    - name: Verify Windows platform
+      win_stat:
+        path: C:\Windows\System32
+      register: win_dir
+      tags: always
+
+    - name: Configure account policies
+      include_tasks: account_policies.yml
+      when: win_dir.stat.exists
+      tags:
+        - account_policies
+        - cis_section1
+
+    - name: Configure user account settings
+      include_tasks: user_accounts.yml
+      when: win_dir.stat.exists
+      tags:
+        - user_accounts
+        - cis_section2
+
+    - name: Configure logon settings
+      include_tasks: logon_settings.yml
+      when: win_dir.stat.exists
+      tags:
+        - logon
+        - cis_section2
+
+    - name: Configure Windows Firewall settings
+      include_tasks: firewall_settings.yml
+      when: win_dir.stat.exists
+      tags:
+        - firewall
+        - cis_section9
+
+    - name: Generate compliance report
+      template:
+        src: compliance_report.j2
+        dest: C:\CIS_Compliance_Report.html
+      when: win_dir.stat.exists
+      tags: reporting
+
+  rescue:
+    - name: Log specific CIS compliance failure
+      win_shell: |
+        Write-EventLog -LogName Application -Source "CIS Compliance" `
+          -EntryType Error -EventId 100 `
+          -Message "CIS Compliance task failed: {{ ansible_failed_task.name }} - {{ ansible_failed_result.msg }}"
+      ignore_errors: yes
+
+    - name: Notify about compliance failure
+      debug:
+        msg: "CIS Compliance task '{{ ansible_failed_task.name }}' failed. Check Application event log for details."
+      changed_when: false

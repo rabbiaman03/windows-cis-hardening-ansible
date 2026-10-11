@@ -1,0 +1,39 @@
+---
+- name: Restrict Remote Desktop to Administrators (CIS 2.2.7)
+  win_security_policy:
+    section: "Privilege Rights"
+    key: SeRemoteInteractiveLogonRight
+    value: "Administrators"
+  tags: 
+    - remote_access
+    - cis_2.2.7
+
+- name: Disable built-in Administrator remote access
+  block:
+    - name: Remove Administrator from Remote Desktop Users group
+      win_shell: |
+        try {
+          $adminAccount = Get-LocalUser -Name Administrator -ErrorAction Stop
+          $rdpGroup = Get-LocalGroup -Name 'Remote Desktop Users' -ErrorAction Stop
+          
+          if ((Get-LocalGroupMember -Group $rdpGroup -Member $adminAccount -ErrorAction SilentlyContinue)) {
+            Remove-LocalGroupMember -Group $rdpGroup -Member $adminAccount -Confirm:$false
+          }
+        }
+        catch {
+          Write-Warning "Administrator account or RDP group not found: $_"
+        }
+      args:
+        executable: powershell
+      when: cis_settings.disable_administrator | bool
+
+    - name: Deny RDP access to Administrator account explicitly
+      win_security_policy:
+        section: "Privilege Rights"
+        key: SeDenyRemoteInteractiveLogonRight
+        value: "Administrator"
+      when: cis_settings.disable_administrator | bool
+
+  tags:
+    - remote_access
+    - cis_2.2.7
